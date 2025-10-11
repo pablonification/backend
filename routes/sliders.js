@@ -1,5 +1,6 @@
 const express = require('express')
 const { db } = require('../lib/supabase')
+const { authenticateToken } = require('../middleware/auth')
 
 const router = express.Router()
 
@@ -25,7 +26,7 @@ router.get('/', async (req, res, next) => {
 })
 
 // POST /api/sliders - Create slider
-router.post('/', async (req, res, next) => {
+router.post('/', authenticateToken, async (req, res, next) => {
   try {
     const { title, image_path, alt_text, order_index } = req.body
 
@@ -63,7 +64,7 @@ router.post('/', async (req, res, next) => {
 })
 
 // PUT /api/sliders/:id - Update slider
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', authenticateToken, async (req, res, next) => {
   try {
     const { id } = req.params
     const { title, image_path, alt_text, order_index } = req.body
@@ -101,7 +102,7 @@ router.put('/:id', async (req, res, next) => {
 })
 
 // DELETE /api/sliders/:id - Delete slider
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', authenticateToken, async (req, res, next) => {
   try {
     const { id } = req.params
 

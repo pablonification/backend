@@ -54,7 +54,7 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes)
-app.use('/api/sliders', authenticateToken, sliderRoutes)
+app.use('/api/sliders', sliderRoutes)
 app.use('/api/announcements', announcementRoutes)
 app.use('/api/files', fileRoutes)
 app.use('/api/modules', moduleRoutes)
