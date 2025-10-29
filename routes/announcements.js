@@ -10,10 +10,29 @@ const router = express.Router()
  */
 router.get('/', async (req, res, next) => {
   try {
-    const { limit } = req.query
-    const limitNum = limit ? parseInt(limit) : null
+    const { page = 1, limit = 10, search, is_important } = req.query
+    
+    // Parse pagination parameters
+    const pageNum = parseInt(page)
+    const limitNum = parseInt(limit)
+    
+    // Validate pagination parameters
+    if (pageNum < 1 || limitNum < 1 || limitNum > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid pagination parameters',
+        code: 'INVALID_PAGINATION'
+      })
+    }
 
-    const { data: announcements, error } = await db.getAnnouncements(limitNum)
+    const options = {
+      page: pageNum,
+      limit: limitNum,
+      search,
+      is_important: is_important === 'true' ? true : is_important === 'false' ? false : undefined
+    }
+
+    const { data: announcements, error, pagination } = await db.getAnnouncements(options)
     
     if (error) {
       throw new Error(`Database error: ${error.message}`)
@@ -22,7 +41,7 @@ router.get('/', async (req, res, next) => {
     res.json({
       success: true,
       data: announcements,
-      count: announcements.length
+      pagination
     })
 
   } catch (error) {
@@ -80,11 +99,28 @@ router.post('/', authenticateToken, async (req, res, next) => {
       })
     }
 
-    if (title.length > 255) {
+    if (title.length > 200) {
       return res.status(400).json({
         success: false,
-        message: 'Title must be less than 255 characters',
+        message: 'Title must be less than 200 characters',
         code: 'TITLE_TOO_LONG'
+      })
+    }
+
+    if (content.length > 10000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Content must be less than 10,000 characters',
+        code: 'CONTENT_TOO_LONG'
+      })
+    }
+
+    // Validate attachments array
+    if (!Array.isArray(attachments)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Attachments must be an array',
+        code: 'INVALID_ATTACHMENTS'
       })
     }
 
@@ -93,7 +129,7 @@ router.post('/', authenticateToken, async (req, res, next) => {
       content,
       attachments,
       is_important,
-      created_by: req.user.id
+      published_at: new Date().toISOString()
     }
 
     const { data: announcement, error } = await db.createAnnouncement(announcementData)
@@ -129,6 +165,31 @@ router.put('/:id', authenticateToken, async (req, res, next) => {
         success: false,
         message: 'Title and content are required',
         code: 'MISSING_FIELDS'
+      })
+    }
+
+    if (title.length > 200) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title must be less than 200 characters',
+        code: 'TITLE_TOO_LONG'
+      })
+    }
+
+    if (content.length > 10000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Content must be less than 10,000 characters',
+        code: 'CONTENT_TOO_LONG'
+      })
+    }
+
+    // Validate attachments array if provided
+    if (attachments !== undefined && !Array.isArray(attachments)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Attachments must be an array',
+        code: 'INVALID_ATTACHMENTS'
       })
     }
 

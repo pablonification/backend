@@ -1,7 +1,7 @@
 const express = require('express')
 const multer = require('multer')
 const { db } = require('../lib/supabase')
-const { storage } = require('../lib/storage')
+const { uploadFile, deleteFile, generateSignedUrl } = require('../lib/storage')
 const { hashFilePassword, compareFilePassword, generateSecureString } = require('../lib/password')
 const { authenticateToken } = require('../middleware/auth')
 
@@ -31,7 +31,29 @@ const upload = multer({
  */
 router.get('/', async (req, res, next) => {
   try {
-    const { data: files, error } = await db.getFiles()
+    const { page = 1, limit = 10, search, visibility } = req.query
+    
+    // Parse pagination parameters
+    const pageNum = parseInt(page)
+    const limitNum = parseInt(limit)
+    
+    // Validate pagination parameters
+    if (pageNum < 1 || limitNum < 1 || limitNum > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid pagination parameters',
+        code: 'INVALID_PAGINATION'
+      })
+    }
+
+    const options = {
+      page: pageNum,
+      limit: limitNum,
+      search,
+      visibility
+    }
+
+    const { data: files, error, pagination } = await db.getFiles(options)
     
     if (error) {
       throw new Error(`Database error: ${error.message}`)
@@ -41,8 +63,14 @@ router.get('/', async (req, res, next) => {
     const publicFiles = files.map(file => ({
       id: file.id,
       name: file.name,
+      storage_path: file.storage_path,
       description: file.description,
+      visibility: file.visibility,
       has_password: file.has_password,
+      file_size: file.file_size,
+      file_type: file.file_type,
+      download_count: file.download_count,
+      created_by: file.created_by,
       created_at: file.created_at,
       updated_at: file.updated_at
     }))
@@ -50,7 +78,7 @@ router.get('/', async (req, res, next) => {
     res.json({
       success: true,
       data: publicFiles,
-      count: publicFiles.length
+      pagination
     })
 
   } catch (error) {
@@ -84,8 +112,14 @@ router.get('/:id', async (req, res, next) => {
     const publicFile = {
       id: file.id,
       name: file.name,
+      storage_path: file.storage_path,
       description: file.description,
+      visibility: file.visibility,
       has_password: file.has_password,
+      file_size: file.file_size,
+      file_type: file.file_type,
+      download_count: file.download_count,
+      created_by: file.created_by,
       created_at: file.created_at,
       updated_at: file.updated_at
     }
@@ -115,10 +149,43 @@ router.post('/', authenticateToken, upload.single('file'), async (req, res, next
       })
     }
 
-    const { description, visibility = 'public', password } = req.body
+    const { name, description, visibility = 'public', password } = req.body
+
+    // Validate input
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'File name is required',
+        code: 'MISSING_NAME'
+      })
+    }
+
+    if (name.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'File name must be less than 100 characters',
+        code: 'NAME_TOO_LONG'
+      })
+    }
+
+    if (description && description.length > 500) {
+      return res.status(400).json({
+        success: false,
+        message: 'Description must be less than 500 characters',
+        code: 'DESCRIPTION_TOO_LONG'
+      })
+    }
+
+    if (!['public', 'private'].includes(visibility)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Visibility must be either "public" or "private"',
+        code: 'INVALID_VISIBILITY'
+      })
+    }
 
     // Upload file to storage
-    const uploadResult = await storage.uploadFile('files', req.file, '')
+    const uploadResult = await uploadFile('files', req.file)
     
     if (!uploadResult.success) {
       throw new Error('Failed to upload file')
@@ -126,10 +193,12 @@ router.post('/', authenticateToken, upload.single('file'), async (req, res, next
 
     // Prepare file data
     const fileData = {
-      name: req.file.originalname,
+      name: name.trim(),
       storage_path: uploadResult.path,
-      description: description || '',
+      description: description?.trim() || '',
       visibility: visibility,
+      file_size: req.file.size,
+      file_type: req.file.mimetype,
       created_by: req.user.id
     }
 
@@ -145,7 +214,7 @@ router.post('/', authenticateToken, upload.single('file'), async (req, res, next
     
     if (error) {
       // Clean up uploaded file if database save fails
-      await storage.deleteFile('files', uploadResult.path)
+      await deleteFile('files', uploadResult.path)
       throw new Error(`Database error: ${error.message}`)
     }
 
@@ -155,9 +224,16 @@ router.post('/', authenticateToken, upload.single('file'), async (req, res, next
       data: {
         id: file.id,
         name: file.name,
+        storage_path: file.storage_path,
         description: file.description,
+        visibility: file.visibility,
         has_password: file.has_password,
-        created_at: file.created_at
+        file_size: file.file_size,
+        file_type: file.file_type,
+        download_count: file.download_count,
+        created_by: file.created_by,
+        created_at: file.created_at,
+        updated_at: file.updated_at
       }
     })
 
@@ -219,7 +295,7 @@ router.post('/:id/verify-password', async (req, res, next) => {
     }
 
     // Generate signed URL for download
-    const signedUrlResult = await storage.generateSignedUrl('files', file.storage_path, 3600) // 1 hour
+    const signedUrlResult = await generateSignedUrl('files', file.storage_path, 3600) // 1 hour
     
     if (!signedUrlResult.success) {
       throw new Error('Failed to generate download URL')
@@ -272,11 +348,14 @@ router.get('/:id/download', async (req, res, next) => {
     }
 
     // Generate signed URL for download
-    const signedUrlResult = await storage.generateSignedUrl('files', file.storage_path, 3600)
+    const signedUrlResult = await generateSignedUrl('files', file.storage_path, 3600)
     
     if (!signedUrlResult.success) {
       throw new Error('Failed to generate download URL')
     }
+
+    // Increment download count
+    await db.incrementFileDownloadCount(id)
 
     res.json({
       success: true,
@@ -288,6 +367,87 @@ router.get('/:id/download', async (req, res, next) => {
 
   } catch (error) {
     console.error('Download file error:', error)
+    next(error)
+  }
+})
+
+/**
+ * DELETE /api/files/:id
+ * Delete file (admin only)
+ */
+/**
+ * PUT /api/files/:id
+ * Update file metadata (admin only)
+ */
+router.put('/:id', authenticateToken, async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const { name, description, visibility, password } = req.body
+
+    // Validate input
+    if (name && name.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'File name must be less than 100 characters',
+        code: 'NAME_TOO_LONG'
+      })
+    }
+
+    if (description && description.length > 500) {
+      return res.status(400).json({
+        success: false,
+        message: 'Description must be less than 500 characters',
+        code: 'DESCRIPTION_TOO_LONG'
+      })
+    }
+
+    if (visibility && !['public', 'private'].includes(visibility)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Visibility must be either "public" or "private"',
+        code: 'INVALID_VISIBILITY'
+      })
+    }
+
+    const updateData = {}
+    
+    if (name !== undefined) updateData.name = name.trim()
+    if (description !== undefined) updateData.description = description?.trim() || ''
+    if (visibility !== undefined) updateData.visibility = visibility
+    
+    // Add or update password protection if provided
+    if (password !== undefined) {
+      if (password && password.trim()) {
+        const hashedPassword = await hashFilePassword(password.trim())
+        updateData.password_hash = hashedPassword
+        updateData.has_password = true
+      } else {
+        updateData.password_hash = null
+        updateData.has_password = false
+      }
+    }
+
+    const { data: file, error } = await db.updateFile(id, updateData)
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          success: false,
+          message: 'File not found',
+          code: 'NOT_FOUND'
+        })
+      }
+      throw new Error(`Database error: ${error.message}`)
+    }
+
+    res.json({
+      success: true,
+      message: 'File updated successfully',
+      data: file
+    })
+
+  } catch (error) {
+    console.error('Update file error:', error)
     next(error)
   }
 })
@@ -315,7 +475,7 @@ router.delete('/:id', authenticateToken, async (req, res, next) => {
     }
 
     // Delete from storage
-    const deleteResult = await storage.deleteFile('files', file.storage_path)
+    const deleteResult = await deleteFile('files', file.storage_path)
     
     if (!deleteResult.success) {
       console.warn('Failed to delete file from storage:', file.storage_path)

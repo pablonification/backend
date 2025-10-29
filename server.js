@@ -11,6 +11,7 @@ const fileRoutes = require('./routes/files')
 const moduleRoutes = require('./routes/modules')
 const nilaiRoutes = require('./routes/nilai')
 const searchRoutes = require('./routes/search')
+const groupRoutes = require('./routes/groups')
 
 const errorHandler = require('./middleware/errorHandler')
 const { authenticateToken } = require('./middleware/auth')
@@ -21,12 +22,18 @@ const PORT = process.env.PORT || 5001
 // Security middleware
 app.use(helmet())
 
-// Rate limiting
+// Rate limiting (more lenient for development)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // higher limit for development
   message: {
     error: 'Too many requests from this IP, please try again later.'
+  },
+  // Skip rate limiting for successful requests
+  skipSuccessfulRequests: false,
+  // Skip rate limiting for health check
+  skip: (req) => {
+    return req.path === '/health'
   }
 })
 app.use(limiter)
@@ -60,6 +67,7 @@ app.use('/api/files', fileRoutes)
 app.use('/api/modules', moduleRoutes)
 app.use('/api/nilai', nilaiRoutes)
 app.use('/api/search', searchRoutes)
+app.use('/api/groups', groupRoutes)
 
 // 404 handler
 app.use('*', (req, res) => {

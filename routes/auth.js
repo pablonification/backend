@@ -43,9 +43,10 @@ router.post('/login', async (req, res, next) => {
       })
     }
 
-    // For demo purposes, we'll use a simple password check
-    // In production, you should hash passwords and use proper authentication
-    if (password !== 'admin123') {
+    // Verify password using bcrypt
+    const isValidPassword = await comparePassword(password, admin.password_hash)
+    
+    if (!isValidPassword) {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials',
@@ -215,15 +216,29 @@ router.post('/change-password', async (req, res, next) => {
       })
     }
 
-    // For demo purposes, we'll skip current password verification
-    // In production, you should verify the current password
+    // Verify current password
+    const isCurrentPasswordValid = await comparePassword(currentPassword, user.password_hash)
+    
+    if (!isCurrentPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Current password is incorrect',
+        code: 'INVALID_CURRENT_PASSWORD'
+      })
+    }
     
     // Hash new password
     const hashedPassword = await hashPassword(newPassword)
     
     // Update password in database
-    // Note: This would require updating the database schema to include password_hash field
-    // For now, we'll just return success
+    const { error: updateError } = await supabase
+      .from('admins')
+      .update({ password_hash: hashedPassword })
+      .eq('id', user.id)
+    
+    if (updateError) {
+      throw new Error(`Failed to update password: ${updateError.message}`)
+    }
     
     res.json({
       success: true,
