@@ -12,6 +12,7 @@ const moduleRoutes = require('./routes/modules')
 const nilaiRoutes = require('./routes/nilai')
 const searchRoutes = require('./routes/search')
 const groupRoutes = require('./routes/groups')
+const contactRoutes = require('./routes/contact')
 
 const errorHandler = require('./middleware/errorHandler')
 const { authenticateToken } = require('./middleware/auth')
@@ -68,6 +69,7 @@ app.use('/api/modules', moduleRoutes)
 app.use('/api/nilai', nilaiRoutes)
 app.use('/api/search', searchRoutes)
 app.use('/api/groups', groupRoutes)
+app.use('/api/contact', contactRoutes)
 
 // 404 handler
 app.use('*', (req, res) => {
