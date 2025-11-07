@@ -13,6 +13,7 @@ const nilaiRoutes = require('./routes/nilai')
 const searchRoutes = require('./routes/search')
 const groupRoutes = require('./routes/groups')
 const contactRoutes = require('./routes/contact')
+const proxyRoutes = require('./routes/proxy')
 
 const errorHandler = require('./middleware/errorHandler')
 const { authenticateToken } = require('./middleware/auth')
@@ -65,6 +66,12 @@ app.use('/api/auth', authRoutes)
 app.use('/api/sliders', sliderRoutes)
 app.use('/api/announcements', announcementRoutes)
 app.use('/api/files', fileRoutes)
+// Add debugging middleware
+app.use((req, res, next) => {
+  console.log(`DEBUG: ${req.method} ${req.originalUrl}`);
+  next();
+});
+app.use('/api/proxy', proxyRoutes)
 app.use('/api/modules', moduleRoutes)
 app.use('/api/nilai', nilaiRoutes)
 app.use('/api/search', searchRoutes)

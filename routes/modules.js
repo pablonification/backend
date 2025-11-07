@@ -98,6 +98,7 @@ router.get('/:id', async (req, res, next) => {
 
 // POST /api/modules - Create new module (admin only)
 router.post('/', authenticateToken, upload.single('file'), async (req, res, next) => {
+  console.log("DEBUG: POST /api/modules called with file:", req.file ? req.file.originalname : "no file");
   try {
     if (!req.file) {
       return res.status(400).json({
