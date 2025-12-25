@@ -611,7 +611,7 @@ router.put('/student/profile', upload.single('avatar'), async (req, res, next) =
         })
       }
 
-      const publicUrl = storage.getPublicUrl('students', filePath)
+      const publicUrl = await storage.getPublicUrl('students', filePath)
       console.log('Avatar public URL:', publicUrl)
       updates.avatar_url = publicUrl.publicUrl
     }
