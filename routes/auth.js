@@ -563,6 +563,23 @@ router.put('/student/profile', upload.single('avatar'), async (req, res, next) =
       })
     }
 
+    if (decoded.role === 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'This endpoint is for students only',
+        code: 'ADMIN_NOT_ALLOWED'
+      })
+    }
+
+    const { data: studentCheck } = await db.getStudent(decoded.userId)
+    if (!studentCheck) {
+      return res.status(403).json({
+        success: false,
+        message: 'Student not found',
+        code: 'NOT_A_STUDENT'
+      })
+    }
+
     const { full_name, nim, cohort, faculty } = req.body
     const updates = {}
 
