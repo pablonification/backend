@@ -1,9 +1,22 @@
 const express = require('express')
 const jwt = require('jsonwebtoken')
-const { db } = require('../lib/supabase')
+const multer = require('multer')
+const { db, storage } = require('../lib/supabase')
 const { hashPassword, comparePassword, validatePassword } = require('../lib/password')
 
 const router = express.Router()
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true)
+    } else {
+      cb(new Error('Only image files are allowed'), false)
+    }
+  }
+})
 
 /**
  * POST /api/auth/login
@@ -517,6 +530,122 @@ router.get('/student/me', async (req, res, next) => {
     }
 
     console.error('Get student error:', error)
+    next(error)
+  }
+})
+
+router.put('/student/profile', upload.single('avatar'), async (req, res, next) => {
+  try {
+    const authHeader = req.headers['authorization']
+    const token = authHeader && authHeader.split(' ')[1]
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Access token required',
+        code: 'MISSING_TOKEN'
+      })
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET)
+
+    if (decoded.role !== 'student') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Student token required.',
+        code: 'INVALID_ROLE'
+      })
+    }
+
+    const { full_name, nim, cohort, faculty } = req.body
+    const updates = {}
+
+    if (full_name) updates.full_name = full_name
+    if (nim !== undefined) updates.nim = nim || null
+    if (cohort !== undefined) updates.cohort = cohort || null
+    if (faculty !== undefined) updates.faculty = faculty || null
+
+    if (req.file) {
+      const fileExt = req.file.originalname.split('.').pop()
+      const fileName = `${decoded.userId}-${Date.now()}.${fileExt}`
+      const filePath = `avatars/${fileName}`
+
+      const { error: uploadError } = await storage.uploadFile(
+        'students',
+        filePath,
+        req.file.buffer,
+        { contentType: req.file.mimetype, upsert: true }
+      )
+
+      if (uploadError) {
+        console.error('Avatar upload error:', uploadError)
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to upload avatar',
+          code: 'UPLOAD_FAILED'
+        })
+      }
+
+      const publicUrl = storage.getPublicUrl('students', filePath)
+      updates.avatar_url = publicUrl.publicUrl
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No fields to update',
+        code: 'NO_UPDATES'
+      })
+    }
+
+    updates.updated_at = new Date().toISOString()
+
+    const { data: student, error } = await db.updateStudent(decoded.userId, updates)
+
+    if (error) {
+      console.error('Update student error:', error)
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update profile',
+        code: 'UPDATE_FAILED'
+      })
+    }
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        user: {
+          id: student.id,
+          email: student.email,
+          full_name: student.full_name,
+          nim: student.nim,
+          cohort: student.cohort,
+          faculty: student.faculty,
+          avatar_url: student.avatar_url,
+          role: 'student'
+        }
+      }
+    })
+
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token',
+        code: 'INVALID_TOKEN'
+      })
+    }
+
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Token expired',
+        code: 'TOKEN_EXPIRED'
+      })
+    }
+
+    console.error('Update profile error:', error)
     next(error)
   }
 })
