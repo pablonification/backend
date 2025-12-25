@@ -7,9 +7,19 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('students', 'students', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Allow public access to read avatars
-CREATE POLICY IF NOT EXISTS "Public Access" ON storage.objects FOR SELECT USING (bucket_id = 'students');
+-- Drop existing policies if they exist, then recreate
+DROP POLICY IF EXISTS "Public Access" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated Upload" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated Update" ON storage.objects;
 
--- Allow authenticated users to upload their own avatars
-CREATE POLICY IF NOT EXISTS "Authenticated Upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'students');
-CREATE POLICY IF NOT EXISTS "Authenticated Update" ON storage.objects FOR UPDATE USING (bucket_id = 'students');
+-- Allow public access to read avatars from students bucket
+CREATE POLICY "Public Access" ON storage.objects 
+  FOR SELECT USING (bucket_id = 'students');
+
+-- Allow authenticated users to upload avatars
+CREATE POLICY "Authenticated Upload" ON storage.objects 
+  FOR INSERT WITH CHECK (bucket_id = 'students');
+
+-- Allow authenticated users to update their avatars  
+CREATE POLICY "Authenticated Update" ON storage.objects 
+  FOR UPDATE USING (bucket_id = 'students');
