@@ -361,7 +361,7 @@ router.post('/student/register', async (req, res, next) => {
           nim: student.nim,
           cohort: student.cohort,
           faculty: student.faculty,
-          role: 'student'
+          avatar_url: student.avatar_url,
         },
         token: token
       }
@@ -445,7 +445,7 @@ router.post('/student/login', async (req, res, next) => {
           nim: student.nim,
           cohort: student.cohort,
           faculty: student.faculty,
-          role: 'student'
+          avatar_url: student.avatar_url,
         },
         token: token
       }
@@ -500,15 +500,13 @@ router.get('/student/me', async (req, res, next) => {
     res.json({
       success: true,
       data: {
-        user: {
-          id: student.id,
-          email: student.email,
-          full_name: student.full_name,
-          nim: student.nim,
-          cohort: student.cohort,
-          faculty: student.faculty,
-          role: 'student'
-        }
+        id: student.id,
+        email: student.email,
+        full_name: student.full_name,
+        nim: student.nim,
+        cohort: student.cohort,
+        faculty: student.faculty,
+        avatar_url: student.avatar_url,
       }
     })
 
