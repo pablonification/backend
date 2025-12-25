@@ -1,14 +1,13 @@
 -- Migration: Add dummy modules for testing UI
 -- Run this in Supabase SQL Editor
 
--- Insert dummy chemistry lab modules
 INSERT INTO modules (title, description, visibility, file_path, file_size, file_type)
 VALUES 
   (
     'Pengenalan Laboratorium Kimia',
     'Modul pengenalan dasar-dasar laboratorium kimia, termasuk pengenalan alat-alat lab, keselamatan kerja, dan prosedur standar laboratorium.',
     'public',
-    'modules/modul-1-pengenalan-lab.pdf',
+    'modul-1-pengenalan-lab.pdf',
     2500000,
     'application/pdf'
   ),
@@ -16,7 +15,7 @@ VALUES
     'Titrasi Asam Basa',
     'Praktikum titrasi asam basa untuk menentukan konsentrasi larutan. Mencakup teori titrasi, indikator pH, dan perhitungan stoikiometri.',
     'public',
-    'modules/modul-2-titrasi-asam-basa.pdf',
+    'modul-2-titrasi-asam-basa.pdf',
     3200000,
     'application/pdf'
   ),
@@ -24,7 +23,7 @@ VALUES
     'Reaksi Redoks',
     'Modul praktikum reaksi oksidasi-reduksi, termasuk penentuan bilangan oksidasi, penyetaraan reaksi redoks, dan sel elektrokimia.',
     'public',
-    'modules/modul-3-reaksi-redoks.pdf',
+    'modul-3-reaksi-redoks.pdf',
     2800000,
     'application/pdf'
   ),
@@ -32,7 +31,7 @@ VALUES
     'Termokimia',
     'Praktikum penentuan kalor reaksi dan hukum Hess. Meliputi penggunaan kalorimeter, perhitungan entalpi, dan analisis data termokimia.',
     'public',
-    'modules/modul-4-termokimia.pdf',
+    'modul-4-termokimia.pdf',
     3500000,
     'application/pdf'
   ),
@@ -40,7 +39,7 @@ VALUES
     'Laju Reaksi dan Kesetimbangan',
     'Modul praktikum laju reaksi kimia dan faktor-faktor yang mempengaruhinya. Termasuk percobaan kesetimbangan dinamis.',
     'public',
-    'modules/modul-5-laju-reaksi.pdf',
+    'modul-5-laju-reaksi.pdf',
     2900000,
     'application/pdf'
   ),
@@ -48,7 +47,7 @@ VALUES
     'Larutan dan Koloid',
     'Praktikum pembuatan dan sifat-sifat larutan serta sistem koloid. Mencakup sifat koligatif dan efek Tyndall.',
     'public',
-    'modules/modul-6-larutan-koloid.pdf',
+    'modul-6-larutan-koloid.pdf',
     2600000,
     'application/pdf'
   ),
@@ -56,13 +55,12 @@ VALUES
     'Analisis Kualitatif',
     'Modul praktikum identifikasi ion-ion dalam larutan menggunakan metode analisis kualitatif klasik.',
     'public',
-    'modules/modul-7-analisis-kualitatif.pdf',
+    'modul-7-analisis-kualitatif.pdf',
     3100000,
     'application/pdf'
   )
 ON CONFLICT DO NOTHING;
 
--- Insert dummy groups for testing
 INSERT INTO groups (name, description, cohort, visibility, storage_path, has_password)
 VALUES 
   (
@@ -70,7 +68,7 @@ VALUES
     'Kelompok praktikum shift Senin pagi (08.00 - 11.00 WIB)',
     '2024',
     'public',
-    'groups/kelompok-a-senin-pagi.pdf',
+    'kelompok-a-senin-pagi.pdf',
     false
   ),
   (
@@ -78,7 +76,7 @@ VALUES
     'Kelompok praktikum shift Senin siang (13.00 - 16.00 WIB)',
     '2024',
     'public',
-    'groups/kelompok-b-senin-siang.pdf',
+    'kelompok-b-senin-siang.pdf',
     false
   ),
   (
@@ -86,7 +84,7 @@ VALUES
     'Kelompok praktikum shift Selasa pagi (08.00 - 11.00 WIB)',
     '2024',
     'public',
-    'groups/kelompok-c-selasa-pagi.pdf',
+    'kelompok-c-selasa-pagi.pdf',
     false
   ),
   (
@@ -94,7 +92,7 @@ VALUES
     'Kelompok praktikum shift Selasa siang (13.00 - 16.00 WIB)',
     '2024',
     'public',
-    'groups/kelompok-d-selasa-siang.pdf',
+    'kelompok-d-selasa-siang.pdf',
     false
   )
 ON CONFLICT DO NOTHING;
