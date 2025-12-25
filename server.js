@@ -4,6 +4,8 @@ const helmet = require('helmet')
 const rateLimit = require('express-rate-limit')
 require('dotenv').config()
 
+const { supabase } = require('./lib/supabase')
+
 const authRoutes = require('./routes/auth')
 const sliderRoutes = require('./routes/sliders')
 const announcementRoutes = require('./routes/announcements')
@@ -54,12 +56,23 @@ app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  })
+app.get('/health', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('modules').select('id').limit(1)
+    res.json({ 
+      status: error ? 'DEGRADED' : 'OK',
+      database: error ? 'DOWN' : 'UP',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    })
+  } catch (err) {
+    res.json({
+      status: 'DEGRADED',
+      database: 'DOWN',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    })
+  }
 })
 
 // API routes
