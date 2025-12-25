@@ -545,13 +545,21 @@ router.put('/student/profile', upload.single('avatar'), async (req, res, next) =
       })
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET)
-
-    if (decoded.role !== 'student') {
-      return res.status(403).json({
+    let decoded
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET)
+    } catch (jwtError) {
+      if (jwtError.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          success: false,
+          message: 'Token expired',
+          code: 'TOKEN_EXPIRED'
+        })
+      }
+      return res.status(401).json({
         success: false,
-        message: 'Access denied. Student token required.',
-        code: 'INVALID_ROLE'
+        message: 'Invalid token',
+        code: 'INVALID_TOKEN'
       })
     }
 
@@ -568,6 +576,8 @@ router.put('/student/profile', upload.single('avatar'), async (req, res, next) =
       const fileName = `${decoded.userId}-${Date.now()}.${fileExt}`
       const filePath = `avatars/${fileName}`
 
+      console.log('Uploading avatar:', { filePath, size: req.file.size, type: req.file.mimetype })
+
       const { error: uploadError } = await storage.uploadFile(
         'students',
         filePath,
@@ -579,12 +589,13 @@ router.put('/student/profile', upload.single('avatar'), async (req, res, next) =
         console.error('Avatar upload error:', uploadError)
         return res.status(500).json({
           success: false,
-          message: 'Failed to upload avatar',
+          message: `Failed to upload avatar: ${uploadError.message || 'Unknown error'}`,
           code: 'UPLOAD_FAILED'
         })
       }
 
       const publicUrl = storage.getPublicUrl('students', filePath)
+      console.log('Avatar public URL:', publicUrl)
       updates.avatar_url = publicUrl.publicUrl
     }
 
