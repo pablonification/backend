@@ -251,4 +251,274 @@ router.post('/change-password', async (req, res, next) => {
   }
 })
 
+// ============================================
+// STUDENT AUTH ENDPOINTS
+// ============================================
+
+/**
+ * POST /api/auth/student/register
+ * Student registration endpoint
+ */
+router.post('/student/register', async (req, res, next) => {
+  try {
+    const { email, password, full_name, nim, cohort, faculty } = req.body
+
+    // Validate required fields
+    if (!email || !password || !full_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email, password, and full name are required',
+        code: 'MISSING_FIELDS'
+      })
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid email format',
+        code: 'INVALID_EMAIL'
+      })
+    }
+
+    // Validate password strength
+    const passwordValidation = validatePassword(password)
+    if (!passwordValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password does not meet requirements',
+        code: 'WEAK_PASSWORD',
+        details: passwordValidation.errors
+      })
+    }
+
+    // Check if email already exists
+    const { data: existingStudent } = await db.getStudentByEmail(email)
+    if (existingStudent) {
+      return res.status(409).json({
+        success: false,
+        message: 'Email already registered',
+        code: 'EMAIL_EXISTS'
+      })
+    }
+
+    // Hash password
+    const password_hash = await hashPassword(password)
+
+    // Create student
+    const { data: student, error } = await db.createStudent({
+      email,
+      password_hash,
+      full_name,
+      nim: nim || null,
+      cohort: cohort || null,
+      faculty: faculty || null
+    })
+
+    if (error) {
+      console.error('Create student error:', error)
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to create account',
+        code: 'CREATE_FAILED'
+      })
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      {
+        userId: student.id,
+        email: student.email,
+        role: 'student'
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    )
+
+    // Return success response
+    res.status(201).json({
+      success: true,
+      message: 'Registration successful',
+      data: {
+        user: {
+          id: student.id,
+          email: student.email,
+          full_name: student.full_name,
+          nim: student.nim,
+          cohort: student.cohort,
+          faculty: student.faculty,
+          role: 'student'
+        },
+        token: token
+      }
+    })
+
+  } catch (error) {
+    console.error('Student registration error:', error)
+    next(error)
+  }
+})
+
+/**
+ * POST /api/auth/student/login
+ * Student login endpoint
+ */
+router.post('/student/login', async (req, res, next) => {
+  try {
+    const { email, password } = req.body
+
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required',
+        code: 'MISSING_CREDENTIALS'
+      })
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid email format',
+        code: 'INVALID_EMAIL'
+      })
+    }
+
+    // Get student from database
+    const { data: student, error } = await db.getStudentByEmail(email)
+
+    if (error || !student) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+        code: 'INVALID_CREDENTIALS'
+      })
+    }
+
+    // Verify password using bcrypt
+    const isValidPassword = await comparePassword(password, student.password_hash)
+
+    if (!isValidPassword) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+        code: 'INVALID_CREDENTIALS'
+      })
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      {
+        userId: student.id,
+        email: student.email,
+        role: 'student'
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    )
+
+    // Return success response
+    res.json({
+      success: true,
+      message: 'Login successful',
+      data: {
+        user: {
+          id: student.id,
+          email: student.email,
+          full_name: student.full_name,
+          nim: student.nim,
+          cohort: student.cohort,
+          faculty: student.faculty,
+          role: 'student'
+        },
+        token: token
+      }
+    })
+
+  } catch (error) {
+    console.error('Student login error:', error)
+    next(error)
+  }
+})
+
+/**
+ * GET /api/auth/student/me
+ * Get current student info
+ */
+router.get('/student/me', async (req, res, next) => {
+  try {
+    const authHeader = req.headers['authorization']
+    const token = authHeader && authHeader.split(' ')[1]
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Access token required',
+        code: 'MISSING_TOKEN'
+      })
+    }
+
+    // Verify JWT token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET)
+
+    // Check if this is a student token
+    if (decoded.role !== 'student') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Student token required.',
+        code: 'INVALID_ROLE'
+      })
+    }
+
+    // Get student info from database
+    const { data: student, error } = await db.getStudent(decoded.userId)
+
+    if (error || !student) {
+      return res.status(401).json({
+        success: false,
+        message: 'Student not found',
+        code: 'USER_NOT_FOUND'
+      })
+    }
+
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: student.id,
+          email: student.email,
+          full_name: student.full_name,
+          nim: student.nim,
+          cohort: student.cohort,
+          faculty: student.faculty,
+          role: 'student'
+        }
+      }
+    })
+
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token',
+        code: 'INVALID_TOKEN'
+      })
+    }
+
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Token expired',
+        code: 'TOKEN_EXPIRED'
+      })
+    }
+
+    console.error('Get student error:', error)
+    next(error)
+  }
+})
+
 module.exports = router

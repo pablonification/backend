@@ -14,6 +14,7 @@ const searchRoutes = require('./routes/search')
 const groupRoutes = require('./routes/groups')
 const contactRoutes = require('./routes/contact')
 const proxyRoutes = require('./routes/proxy')
+const deviceRoutes = require('./routes/devices')
 
 const errorHandler = require('./middleware/errorHandler')
 const { authenticateToken } = require('./middleware/auth')
@@ -77,6 +78,7 @@ app.use('/api/nilai', nilaiRoutes)
 app.use('/api/search', searchRoutes)
 app.use('/api/groups', groupRoutes)
 app.use('/api/contact', contactRoutes)
+app.use('/api/devices', deviceRoutes)
 
 // 404 handler
 app.use('*', (req, res) => {
