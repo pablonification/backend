@@ -246,6 +246,11 @@ INSERT INTO admins (email, password_hash, full_name, role) VALUES
 ('admin@labkimia.itb.ac.id', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4mBmqj1yk4IiIqiy', 'Admin Lab Kimia', 'admin')
 ON CONFLICT (email) DO NOTHING;
 
+-- Ganti hash di bawah dengan hasil bcrypt dari password yang kamu inginkan
+INSERT INTO admins (email, password_hash, full_name, role) VALUES
+('adminbaru@labkimia.itb.ac.id', '$2b$12$w7w8u8Qw7w8u8Qw7w8u8Qe8u8Qw7w8u8Qw7w8u8Qw7w8u8Qw7w8u', 'Admin Baru', 'admin')
+ON CONFLICT (email) DO NOTHING;
+
 -- Insert sample sliders
 INSERT INTO sliders (title, image_path, alt_text, order_index) VALUES
 ('Selamat Datang di Lab Kimia Dasar ITB', '/images/slider-1.jpg', 'Welcome Banner', 1),

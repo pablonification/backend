@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken')
 const multer = require('multer')
 const { db, storage } = require('../lib/supabase')
 const { hashPassword, comparePassword, validatePassword } = require('../lib/password')
+const bcrypt = require('bcrypt');
 
 const router = express.Router()
 
@@ -24,7 +25,8 @@ const upload = multer({
  */
 router.post('/login', async (req, res, next) => {
   try {
-    const { email, password } = req.body
+    const { email, password } = req.body;
+    console.log('Email:', email);
 
     // Validate input
     if (!email || !password) {
@@ -48,10 +50,12 @@ router.post('/login', async (req, res, next) => {
     // Get admin user from database
     const { data: admin, error } = await db.getAdminByEmail(email)
     
+    console.log('Admin from DB:', admin);
+
     if (error || !admin) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials',
+        message: 'Invalid credentials admin',
         code: 'INVALID_CREDENTIALS'
       })
     }
@@ -59,10 +63,12 @@ router.post('/login', async (req, res, next) => {
     // Verify password using bcrypt
     const isValidPassword = await comparePassword(password, admin.password_hash)
     
-    if (!isValidPassword) {
+    const isMatch = await bcrypt.compare(password, admin.password_hash)
+
+    if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials',
+        message: 'Invalid credentials admin',
         code: 'INVALID_CREDENTIALS'
       })
     }
@@ -87,7 +93,7 @@ router.post('/login', async (req, res, next) => {
           id: admin.id,
           email: admin.email,
           full_name: admin.full_name,
-          role: admin.role
+          role: 'admin' // pastikan selalu ada role: 'admin'
         },
         token: token
       }
@@ -406,7 +412,7 @@ router.post('/student/login', async (req, res, next) => {
     if (error || !student) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials',
+        message: 'Invalid credentials student',
         code: 'INVALID_CREDENTIALS'
       })
     }
@@ -417,7 +423,7 @@ router.post('/student/login', async (req, res, next) => {
     if (!isValidPassword) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials',
+        message: 'Invalid credentials student',
         code: 'INVALID_CREDENTIALS'
       })
     }

@@ -45,7 +45,13 @@ app.use(limiter)
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || ['http://localhost:3000', 'http://localhost:5001'],
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:8081',
+    'http://192.168.1.5:8081',
+    'exp://192.168.1.5:8081',
+    // tambahkan origin lain jika perlu (misal dari Expo Go di HP)
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
