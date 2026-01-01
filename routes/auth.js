@@ -1,9 +1,8 @@
 const express = require('express')
 const jwt = require('jsonwebtoken')
 const multer = require('multer')
-const { db, storage } = require('../lib/supabase')
+const { db, storage, supabase } = require('../lib/supabase')
 const { hashPassword, comparePassword, validatePassword } = require('../lib/password')
-const bcrypt = require('bcrypt');
 
 const router = express.Router()
 
@@ -62,10 +61,8 @@ router.post('/login', async (req, res, next) => {
 
     // Verify password using bcrypt
     const isValidPassword = await comparePassword(password, admin.password_hash)
-    
-    const isMatch = await bcrypt.compare(password, admin.password_hash)
 
-    if (!isMatch) {
+    if (!isValidPassword) {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials admin',
@@ -506,13 +503,15 @@ router.get('/student/me', async (req, res, next) => {
     res.json({
       success: true,
       data: {
-        id: student.id,
-        email: student.email,
-        full_name: student.full_name,
-        nim: student.nim,
-        cohort: student.cohort,
-        faculty: student.faculty,
-        avatar_url: student.avatar_url,
+        user: {
+          id: student.id,
+          email: student.email,
+          full_name: student.full_name,
+          nim: student.nim,
+          cohort: student.cohort,
+          faculty: student.faculty,
+          avatar_url: student.avatar_url,
+        }
       }
     })
 
